@@ -27,6 +27,7 @@ class ShmemVecEnv(VecEnv):
         If you don't specify observation_space, we'll have to create a dummy
         environment to get it.
         """
+
         ctx = mp.get_context(context)
         if spaces:
             observation_space, action_space = spaces
@@ -36,7 +37,15 @@ class ShmemVecEnv(VecEnv):
                 dummy = env_fns[0]()
                 observation_space, action_space = dummy.observation_space, dummy.action_space
                 dummy.close()
+                try:
+                    self.visionnet_input = dummy.env.env.env.visionnet_input
+                    self.nn = dummy.env.env.env.nn
+                    if dummy.env.env.env.unity:
+                        dummy.env.env.env.close() ## HACK>>>
+                except Exception as e:
+                   pass
                 del dummy
+
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
         self.obs_keys, self.obs_shapes, self.obs_dtypes = obs_space_info(observation_space)
         self.obs_bufs = [
@@ -57,6 +66,7 @@ class ShmemVecEnv(VecEnv):
                 child_pipe.close()
         self.waiting_step = False
         self.viewer = None
+
 
     def reset(self):
         if self.waiting_step:
